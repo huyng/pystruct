@@ -198,7 +198,7 @@ class SubgradientSSVM(BaseSSVM):
 
                 self._compute_training_loss(X, Y, iteration)
                 if self.logger is not None:
-                    self.logger(self, iteration)
+                    self.logger(self, X, Y, iteration)
 
         except KeyboardInterrupt:
             pass
@@ -209,7 +209,7 @@ class SubgradientSSVM(BaseSSVM):
         self.timestamps_.append(time() - self.timestamps_[0])
         self.primal_objective_curve_.append(self._objective(X, Y))
         if self.logger is not None:
-            self.logger(self, 'final')
+            self.logger(self, X, Y, 'final')
         if self.verbose:
             if self.primal_objective_curve_:
                 print("final objective: %f" % self.primal_objective_curve_[-1])
