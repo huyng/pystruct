@@ -46,7 +46,7 @@ def main():
     for file_name in args.pickles:
         print("loading %s ..." % file_name)
         ssvms.append(SaveLogger(file_name=file_name).load())
-    if np.any([hasattr(ssvm, 'loss_curve_') for ssvm in ssvms]):
+    if np.any([hasattr(ssvm.logger, 'loss_') for ssvm in ssvms]):
         n_plots = 2
     else:
         n_plots = 1
@@ -62,7 +62,8 @@ def main():
         best_dual = None
 
 
-    for i, (ssvm, file_name, color) in enumerate(zip(ssvms, args.pickles, get_color(1))):
+    for i, (ssvm, file_name, color) in enumerate(zip(ssvms, args.pickles, get_color(2))):
+    #for i, (ssvm, file_name, color) in enumerate(zip(ssvms, args.pickles, colors)):
         prefix = ""
         if len(ssvms) > 1:
             prefix = file_name[:-7] + " "
@@ -111,75 +112,60 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
     print(ssvm)
     if hasattr(ssvm, 'base_ssvm'):
         ssvm = ssvm.base_ssvm
-
-    inference_run = None
-    ssvm.timestamps_ = np.array(ssvm.timestamps_)
-    primal_objective_curve = np.array(ssvm.primal_objective_curve_)
+    logger = ssvm.logger
+    #inference_run = None
+    primal_objective = np.array(logger.primal_objective_)
     if suboptimality is not None:
-        primal_objective_curve -= suboptimality
-    if hasattr(ssvm, 'cached_constraint_') and np.any(ssvm.cached_constraint_):
-        # we don't want to do this if there was no constraint caching
-        inference_run = ~np.array(ssvm.cached_constraint_)
-        if show_caching:
-            pass
-        else:
-            ssvm.dual_objective_curve_ = np.array(ssvm.dual_objective_curve_)[inference_run]
-            primal_objective_curve = primal_objective_curve[inference_run]
-            ssvm.timestamps_ = np.hstack([ssvm.timestamps_[0], ssvm.timestamps_[1:][inference_run]])
-    else:
-        show_caching = False
+        primal_objective -= suboptimality
+    #if hasattr(ssvm, 'cached_constraint_') and np.any(ssvm.cached_constraint_):
+        ## we don't want to do this if there was no constraint caching
+        #inference_run = ~np.array(ssvm.cached_constraint_)
+        #if show_caching:
+            #pass
+        #else:
+            #ssvm.dual_objective_curve_ = np.array(ssvm.dual_objective_curve_)[inference_run]
+            #primal_objective = primal_objective[inference_run]
+            #ssvm.timestamps_ = np.hstack([ssvm.timestamps_[0], ssvm.timestamps_[1:][inference_run]])
+    #else:
+        #show_caching = False
 
-    if hasattr(ssvm, 'iterations_'):
-        # BCFW remembers when we computed the objective
-        iterations = ssvm.iterations_
-    elif hasattr(ssvm, 'dual_objective_curve_'):
-        iterations = np.arange(len(ssvm.dual_objective_curve_))
-        print("Dual Objective: %f" % ssvm.dual_objective_curve_[-1])
-    else:
-        iterations = np.arange(len(primal_objective_curve))
-        print("Primal Objective: %f" % primal_objective_curve[-1])
-
-    print("Iterations: %d" % (np.max(iterations) + 1))  # we count from 0
-    if hasattr(ssvm, "loss_curve_"):
+    #print("Iterations: %d" % (np.max(iterations) + 1))  # we count from 0
+    if len(logger.loss_):
         n_plots = 2
     else:
         n_plots = 1
     if axes is None:
         fig, axes = plt.subplots(1, n_plots)
-    if not isinstance(axes, list):
+    if not isinstance(axes, np.ndarray):
         axes = [axes]
 
     if time:
-        inds = np.array(ssvm.timestamps_)
-        inds = inds[1:] / 60.
+        inds = np.array(logger.timestamps_) / 60.
         axes[0].set_xlabel('training time (min)')
     else:
         axes[0].set_xlabel('Passes through training data')
-        inds = iterations
+        inds = np.arange(len(logger.timestamps_)) * logger.log_every
 
     axes[0].set_title("Objective")
     axes[0].set_yscale('log')
-    if hasattr(ssvm, "dual_objective_curve_") and suboptimality is None:
-        axes[0].plot(inds, ssvm.dual_objective_curve_, '--', label=prefix + "dual objective", color=color, linewidth=3)
-    axes[0].plot(inds, primal_objective_curve,
-                 label=prefix + "cached primal objective" if inference_run is not None
-                 else prefix + "primal objective", color=color, linewidth=3)
-    if show_caching:
-        axes[0].plot(inds[inference_run],
-                     primal_objective_curve[inference_run], 'o', label=prefix +
-                     "primal", color=color)
+    if suboptimality is None and len(logger.dual_objective_):
+        primal_prefix = "primal objective"
+        axes[0].plot(inds, logger.dual_objective_, '--', label=prefix + "dual objective", color=color, linewidth=3)
+    else:
+        primal_prefix = ""
+    axes[0].plot(inds, primal_objective, label=prefix + primal_prefix,
+                 color=color, linewidth=3)
     axes[0].legend(loc='best')
     if n_plots == 2:
         if time:
             axes[1].set_xlabel('training time (min)')
         else:
             axes[1].set_xlabel('Passes through training data')
-
-        try:
-            axes[1].plot(inds[::ssvm.show_loss_every], ssvm.loss_curve_, color=color)
-        except:
-            axes[1].plot(ssvm.loss_curve_, color=color)
-
+        if isinstance(logger.loss_[0], list):
+            loss = [np.sum(l) for l in logger.loss_]
+        else:
+            loss = logger.loss_
+        axes[1].plot(inds, loss, color=color, linewidth=3)
         axes[1].set_title("Training Error")
         axes[1].set_yscale('log')
     return axes
