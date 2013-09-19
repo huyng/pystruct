@@ -4,7 +4,7 @@ import numpy as np
 from pystruct.datasets import load_letters
 from pystruct.models import ChainCRF
 from pystruct.learners import FrankWolfeSSVM, SubgradientSSVM, NSlackSSVM, OneSlackSSVM
-from pystruct.utils import SaveLogger
+from pystruct.utils import AnalysisLogger
 
 
 from sklearn.utils import shuffle
@@ -16,8 +16,8 @@ X, y, folds = letters['data'], letters['labels'], letters['folds']
 # we convert the lists to object arrays, as that makes slicing much more
 # convenient
 X, y = np.array(X), np.array(y)
-X_train, X_test = X[folds != 1], X[folds == 1]
-y_train, y_test = y[folds != 1], y[folds == 1]
+X_train, X_test = X[folds == 1], X[folds != 1]
+y_train, y_test = y[folds == 1], y[folds != 1]
 
 
 # Train linear chain CRF
@@ -38,6 +38,6 @@ print(len(X))
 X_train, y_train = shuffle(X_train, y_train)
 
 for name, svm in zip(names, svms):
-    logger = SaveLogger("letters_big_" + name + ".pickle", save_every=10)
+    logger = AnalysisLogger("letters_small_" + name + ".pickle", log_every=10)
     svm.logger = logger
     svm.fit(X_train, y_train)
