@@ -250,13 +250,14 @@ class OneSlackSSVM(BaseSSVM):
         violation_difference = violation - self.last_slack_
         if self.verbose > 1:
             print("New violation: %f difference to last: %f"
-                  % (violation, violation_difference))
+                  % (violation * self.C * self._n_samples,
+                     violation_difference * self.C * self._n_samples))
         if violation_difference < 0 and violation > 0 and break_on_bad:
             raise ValueError("Bad inference: new violation is smaller than"
                              " old.")
         if tol is None:
             tol = self.tol
-        if violation_difference < tol:
+        if violation_difference * self.C * self._n_samples < tol:
             if self.verbose:
                 print("new constraint too weak.")
             return True
@@ -401,6 +402,7 @@ class OneSlackSSVM(BaseSSVM):
         cvxopt.solvers.options['show_progress'] = self.verbose > 3
         if initialize:
             self.model.initialize(X, Y)
+        self._n_samples = len(X)
 
         # parse cache_tol parameter
         if self.cache_tol is None or self.cache_tol == 'auto':
