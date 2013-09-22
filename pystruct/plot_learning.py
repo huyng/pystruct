@@ -3,6 +3,8 @@
 This module provides a callable for easy evaluation of stored models.
 """
 import argparse
+from os.path import commonprefix
+from numbers import Number
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -28,6 +30,7 @@ def get_color(offset=0):
         i += 1
         yield [c1, c2, c3]
 
+
 def main():
 
     parser = argparse.ArgumentParser(description='Plot learning progress for one or several SSVMs.')
@@ -39,6 +42,9 @@ def main():
     parser.add_argument('--dual', dest='dual', action='store_const',
                         const=True, default=False, help='Plot primal and dual '
                        'values (default: plot primal suboptimality.)')
+    parser.add_argument('--absolute-loss', dest='absolute_loss', action='store_const',
+                        const=True, default=False, help='Plot full loss value '
+                       ' (default: plot difference to best loss.)')
 
     args = parser.parse_args()
 
@@ -58,6 +64,14 @@ def main():
         for ssvm in ssvms:
             if hasattr(ssvm, 'dual_objective_curve_'):
                 best_dual = max(best_dual, np.max(ssvm.dual_objective_curve_))
+
+    if not args.absolute_loss:
+        best_loss = np.inf
+        for ssvm in ssvms:
+            best_loss = min(best_loss, np.min(ssvm.logger.loss_))
+    else:
+        best_loss = 0
+
     if args.dual or not np.isfinite(best_dual):
         best_dual = None
 
@@ -66,14 +80,15 @@ def main():
     #for i, (ssvm, file_name, color) in enumerate(zip(ssvms, args.pickles, colors)):
         prefix = ""
         if len(ssvms) > 1:
-            prefix = file_name[:-7] + " "
+            common_prefix_length = len(commonprefix(args.pickles))
+            prefix = file_name[common_prefix_length:-7] + " "
         plot_learning(ssvm, axes=axes, prefix=prefix, time=args.time,
-                      color=color, suboptimality=best_dual)
+                      color=color, suboptimality=best_dual, loss_bound=best_loss)
     plt.show()
 
 
 def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
-    show_caching=False, suboptimality=None):
+    show_caching=False, suboptimality=None, loss_bound=0):
     """Plot optimization curves and cache hits.
 
     Create a plot summarizing the optimization / learning process of an SSVM.
@@ -103,6 +118,9 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
         If a float is given, only plot primal suboptimality with respect to
         this optimum.
 
+    loss_bound : float, default=0
+        Lower bound for the loss for plotting in log-domain
+
     Notes
     -----
     Warm-starting a model might mess up the alignment of the curves.
@@ -113,23 +131,9 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
     if hasattr(ssvm, 'base_ssvm'):
         ssvm = ssvm.base_ssvm
     logger = ssvm.logger
-    #inference_run = None
     primal_objective = np.array(logger.primal_objective_)
     if suboptimality is not None:
         primal_objective -= suboptimality
-    #if hasattr(ssvm, 'cached_constraint_') and np.any(ssvm.cached_constraint_):
-        ## we don't want to do this if there was no constraint caching
-        #inference_run = ~np.array(ssvm.cached_constraint_)
-        #if show_caching:
-            #pass
-        #else:
-            #ssvm.dual_objective_curve_ = np.array(ssvm.dual_objective_curve_)[inference_run]
-            #primal_objective = primal_objective[inference_run]
-            #ssvm.timestamps_ = np.hstack([ssvm.timestamps_[0], ssvm.timestamps_[1:][inference_run]])
-    #else:
-        #show_caching = False
-
-    #print("Iterations: %d" % (np.max(iterations) + 1))  # we count from 0
     if len(logger.loss_):
         n_plots = 2
     else:
@@ -161,12 +165,13 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
             axes[1].set_xlabel('training time (min)')
         else:
             axes[1].set_xlabel('Passes through training data')
-        if isinstance(logger.loss_[0], list):
+        if not isinstance(logger.loss_[0], Number):
+            # backward compatibility fix me!
             loss = [np.sum(l) for l in logger.loss_]
         else:
             loss = logger.loss_
-        axes[1].plot(inds, loss, color=color, linewidth=3)
-        axes[1].set_title("Training Error")
+        axes[1].plot(inds, np.array(loss) - loss_bound, color=color, linewidth=3)
+        axes[1].set_title("Training Error (- %f)" % loss_bound)
         axes[1].set_yscale('log')
     return axes
 
