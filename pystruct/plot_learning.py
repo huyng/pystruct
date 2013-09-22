@@ -42,6 +42,9 @@ def main():
     parser.add_argument('--dual', dest='dual', action='store_const',
                         const=True, default=False, help='Plot primal and dual '
                        'values (default: plot primal suboptimality.)')
+    parser.add_argument('--loss', dest='loss', action='store_const',
+                        const=True, default=False, help='Plot loss '
+                       'values (default: False.)')
     parser.add_argument('--absolute-loss', dest='absolute_loss', action='store_const',
                         const=True, default=False, help='Plot full loss value '
                        ' (default: plot difference to best loss.)')
@@ -52,7 +55,7 @@ def main():
     for file_name in args.pickles:
         print("loading %s ..." % file_name)
         ssvms.append(SaveLogger(file_name=file_name).load())
-    if np.any([hasattr(ssvm.logger, 'loss_') for ssvm in ssvms]):
+    if args.loss and np.any([hasattr(ssvm.logger, 'loss_') for ssvm in ssvms]):
         n_plots = 2
     else:
         n_plots = 1
@@ -65,7 +68,7 @@ def main():
             if hasattr(ssvm, 'dual_objective_curve_'):
                 best_dual = max(best_dual, np.max(ssvm.dual_objective_curve_))
 
-    if not args.absolute_loss:
+    if not args.absolute_loss and n_plots ==2:
         best_loss = np.inf
         for ssvm in ssvms:
             best_loss = min(best_loss, np.min(ssvm.logger.loss_))
@@ -83,12 +86,13 @@ def main():
             common_prefix_length = len(commonprefix(args.pickles))
             prefix = file_name[common_prefix_length:-7] + " "
         plot_learning(ssvm, axes=axes, prefix=prefix, time=args.time,
-                      color=color, suboptimality=best_dual, loss_bound=best_loss)
+                      color=color, suboptimality=best_dual,
+                      loss_bound=best_loss, loss=args.loss)
     plt.show()
 
 
 def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
-    show_caching=False, suboptimality=None, loss_bound=0):
+    show_caching=False, suboptimality=None, loss_bound=0, loss=False):
     """Plot optimization curves and cache hits.
 
     Create a plot summarizing the optimization / learning process of an SSVM.
@@ -134,7 +138,7 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
     primal_objective = np.array(logger.primal_objective_)
     if suboptimality is not None:
         primal_objective -= suboptimality
-    if len(logger.loss_):
+    if len(logger.loss_) and loss:
         n_plots = 2
     else:
         n_plots = 1

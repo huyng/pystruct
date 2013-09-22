@@ -32,7 +32,7 @@ class SaveLogger(object):
         return ('%s(file_name="%s", log_every=%s)'
                 % (self.__class__.__name__, self.file_name, log_every))
 
-    def __call__(self, learner, X, Y, iteration=0):
+    def __call__(self, learner, X, Y, iteration=0, force=False):
         """Save learner if iterations is a multiple of log_every or "final".
 
         Parameters
@@ -40,11 +40,13 @@ class SaveLogger(object):
         learner : object
             Learning object to be saved.
 
-        iteration : int or 'final' (default=0)
-            If 'final' or log_every % iteration == 0,
+        iteration : int (default=0)
+            If log_every % iteration == 0,
             the model will be saved.
+        force : bool, default=False
+            If True, will save independent of iteration.
         """
-        if iteration == 'final' or not iteration % self.log_every:
+        if force or not iteration % self.log_every:
             file_name = self.file_name
             if "%d" in file_name:
                 file_name = file_name % iteration
@@ -69,7 +71,7 @@ class SaveLogger(object):
 
 class AnalysisLogger(SaveLogger):
     """Log everything. """
-    def __init__(self, file_name, log_every=10, verbose=0, compute_primal=True,
+    def __init__(self, file_name=None, log_every=10, verbose=0, compute_primal=True,
                  compute_loss=True, compute_dual=True, skip_caching=True):
         SaveLogger.__init__(self, file_name=file_name, log_every=log_every,
                             verbose=verbose)
@@ -116,6 +118,6 @@ class AnalysisLogger(SaveLogger):
                 self.dual_objective_.append(learner.dual_objective_curve_[-1])
             if self.compute_loss:
                 self.loss_.append(np.sum(learner.model.batch_loss(Y, learner.predict(X))))
-
-        SaveLogger.__call__(self, learner, X, Y, iteration=iteration)
+        if self.file_name is not None:
+            SaveLogger.__call__(self, learner, X, Y, iteration=iteration)
 
