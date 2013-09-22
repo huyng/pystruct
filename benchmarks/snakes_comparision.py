@@ -75,9 +75,9 @@ X_train_directions, X_train_edge_features = prepare_data(X_train)
 inference = 'ad3'
 model = EdgeFeatureGraphCRF(inference_method=inference)
 
-bcfw = FrankWolfeSSVM(model=model, C=.1, max_iter=100, tol=0.1, verbose=3, check_dual_every=3, averaging='linear')
-pegasos = SubgradientSSVM(model=model, C=.1, max_iter=100, verbose=3, momentum=0, decay_exponent=1, decay_t0=1, learning_rate=len(X_train) * .1)
-pystructsgd = SubgradientSSVM(model=model, C=.1, max_iter=100, verbose=3)
+bcfw = FrankWolfeSSVM(model=model, C=.1, max_iter=1000, tol=0.1, verbose=3, check_dual_every=3, averaging='linear')
+pegasos = SubgradientSSVM(model=model, C=.1, max_iter=1000, verbose=3, momentum=0, decay_exponent=1, decay_t0=1, learning_rate=len(X_train) * .1)
+pystructsgd = SubgradientSSVM(model=model, C=.1, max_iter=1000, verbose=3)
 nslack = NSlackSSVM(model, C=.1, tol=.1, verbose=3)
 nslack_every = NSlackSSVM(model, C=.1, tol=.1, verbose=3, batch_size=1)
 oneslack = OneSlackSSVM(model, C=.1, tol=.1, verbose=3)

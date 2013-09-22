@@ -524,7 +524,7 @@ class OneSlackSSVM(BaseSSVM):
         self.cached_constraint_.append(False)
 
         if self.logger is not None:
-            self.logger(self, X, Y, 'final')
+            self.logger(self, X, Y, iteration, force=True)
 
         if self.verbose > 0:
             print("final primal objective: %f gap: %f"

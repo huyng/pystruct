@@ -87,7 +87,7 @@ class AnalysisLogger(SaveLogger):
         return ('%s(file_name="%s", log_every=%s)'
                 % (self.__class__.__name__, self.file_name, self.log_every))
 
-    def __call__(self, learner, X, Y, iteration=0):
+    def __call__(self, learner, X, Y, iteration=0, force=False):
         """Save learner if iterations is a multiple of log_every or "final".
 
         Parameters
@@ -95,17 +95,19 @@ class AnalysisLogger(SaveLogger):
         learner : object
             Learning object to be saved.
 
-        iteration : int or 'final' (default=0)
-            If 'final' or log_every % iteration == 0,
-            the model will be saved.
+        iteration : int (default=0)
+            If log_every % iteration == 0,
+            the model will be logged.
+
+        force : bool, default=False
+            Whether to force logging, such as in the last iteration.
         """
-        if (self.skip_caching and hasattr(learner, 'cached_constraint_') and
-                iteration != 'final'):
+        if self.skip_caching and hasattr(learner, 'cached_constraint_'):
             iteration = iteration - np.sum(learner.cached_constraint_)
             if iteration <= len(self.iterations_) * self.log_every:
                 # no inference since last log
                 return
-        if iteration == 'final' or not iteration % self.log_every:
+        if force or not iteration % self.log_every:
             self.iterations_.append(iteration)
             self.timestamps_.append(time() - self.init_time_)
             if self.compute_primal:

@@ -306,6 +306,6 @@ class FrankWolfeSSVM(BaseSSVM):
         if hasattr(self, "iterations_"):
             self.iterations_.append(self._iteration)
         if self.logger is not None:
-            self.logger(self, X, Y, 'final')
+            self.logger(self, X, Y, self._iteration, force=True)
 
         return self
