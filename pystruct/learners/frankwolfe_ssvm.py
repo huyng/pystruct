@@ -306,6 +306,6 @@ class FrankWolfeSSVM(BaseSSVM):
         self.primal_objective_curve_.append(self._objective(X, Y))
         self.objective_curve_.append(self.objective_curve_[-1])
         if self.logger is not None:
-            self.logger(self, X, Y, 'final')
+            self.logger(self, X, Y, self._iteration, force=True)
 
         return self

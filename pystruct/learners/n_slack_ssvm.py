@@ -365,8 +365,8 @@ class NSlackSSVM(BaseSSVM):
                     print("no additional constraints")
                     stopping_criterion = True
 
-                if (iteration > 1 and self.dual_objective_curve_[-1]
-                        - self.dual_objective_curve_[-2] < self.tol):
+                if (iteration > 1 and self.primal_objective_curve_[-1]
+                        - self.dual_objective_curve_[-1] < self.tol):
                     print("objective converged.")
                     stopping_criterion = True
 
@@ -401,7 +401,7 @@ class NSlackSSVM(BaseSSVM):
         self.primal_objective_curve_.append(self._objective(X, Y))
         self.dual_objective_curve_.append(objective)
         if self.logger is not None:
-            self.logger(self, X, Y, 'final')
+            self.logger(self, X, Y, iteration, force=True)
         return self
 
     def prune_constraints(self, constraints, a):
