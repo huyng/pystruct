@@ -68,6 +68,10 @@ class SubgradientSSVM(BaseSSVM):
 
     logger : logger object.
 
+    averaging : string, default='linear'
+        Whether and how to average weights. Possible options are 'linear', 'squared' and 'none'.
+        Currently this is only supported in the block-coordinate version.
+
     Attributes
     ----------
     w : nd-array, shape=(model.size_psi,)
@@ -86,10 +90,11 @@ class SubgradientSSVM(BaseSSVM):
                  learning_rate=0.001, n_jobs=1,
                  show_loss_every=0, decay_exponent=0,
                  break_on_no_constraints=True, logger=None, batch_size=None,
-                 decay_t0=10):
+                 decay_t0=10, averaging=None):
         BaseSSVM.__init__(self, model, max_iter, C, verbose=verbose,
                           n_jobs=n_jobs, show_loss_every=show_loss_every,
                           logger=logger)
+        self.averaging = averaging
         self.break_on_no_constraints = break_on_no_constraints
         self.momentum = momentum
         self.learning_rate = learning_rate
@@ -104,9 +109,9 @@ class SubgradientSSVM(BaseSSVM):
     def objective_curve_(self):
         return self.primal_objective_curve_
 
-    def _solve_subgradient(self, dpsi, n_samples):
+    def _solve_subgradient(self, dpsi, n_samples, w):
         """Do a single subgradient step."""
-        grad = (dpsi - self.w / (self.C * n_samples))
+        grad = (dpsi - w / (self.C * n_samples))
 
         self.grad_old = ((1 - self.momentum) * grad
                          + self.momentum * self.grad_old)
@@ -116,9 +121,18 @@ class SubgradientSSVM(BaseSSVM):
             effective_lr = (self.learning_rate
                             / (self.t + self.decay_t0)
                             ** self.decay_exponent)
-        self.w += effective_lr * self.grad_old
+        w += effective_lr * self.grad_old
 
+        if self.averaging == 'linear':
+            rho = 2. / (self.t + 2.)
+            self.w = (1. - rho) * self.w + rho * w
+        elif self.averaging == 'squared':
+            rho = 6. * (self.t + 1) / ((self.t + 2) * (2 * self.t + 3))
+            self.w = (1. - rho) * self.w + rho * w
+        else:
+            self.w = w
         self.t += 1.
+        return w
 
     def fit(self, X, Y, constraints=None, warm_start=False, initialize=True):
         """Learn parameters using subgradient descent.
@@ -147,8 +161,9 @@ class SubgradientSSVM(BaseSSVM):
             self.model.initialize(X, Y)
         print("Training primal subgradient structural SVM")
         self.grad_old = np.zeros(self.model.size_psi)
+        self.w = getattr(self, "w", np.zeros(self.model.size_psi))
+        w = self.w.copy()
         if not warm_start:
-            self.w = getattr(self, "w", np.zeros(self.model.size_psi))
             self.primal_objective_curve_ = []
             self.timestamps_ = [time()]
         else:
@@ -157,13 +172,12 @@ class SubgradientSSVM(BaseSSVM):
             # catch ctrl+c to stop training
             for iteration in xrange(self.max_iter):
                 if self.n_jobs == 1:
-                    objective, positive_slacks = self._sequential_learning(X,
-                                                                           Y)
+                    objective, positive_slacks, w = self._sequential_learning(X, Y, w)
                 else:
-                    objective, positive_slacks = self._parallel_learning(X, Y)
+                    objective, positive_slacks, w = self._parallel_learning(X, Y, w)
 
                 # some statistics
-                objective = objective * self.C + np.sum(self.w ** 2) / 2.
+                objective = objective * self.C + np.sum(w ** 2) / 2.
 
                 if positive_slacks == 0:
                     print("No additional constraints")
@@ -203,7 +217,7 @@ class SubgradientSSVM(BaseSSVM):
 
         return self
 
-    def _parallel_learning(self, X, Y):
+    def _parallel_learning(self, X, Y, w):
         n_samples = len(X)
         objective, positive_slacks = 0, 0
         verbose = max(0, self.verbose - 3)
@@ -225,7 +239,7 @@ class SubgradientSSVM(BaseSSVM):
             candidate_constraints = Parallel(
                 n_jobs=self.n_jobs,
                 verbose=verbose)(delayed(find_constraint)(
-                    self.model, x, y, self.w)
+                    self.model, x, y, w)
                     for x, y in zip(X_b, Y_b))
             dpsi = np.zeros(self.model.size_psi)
             for x, y, constraint in zip(X_b, Y_b,
@@ -235,21 +249,21 @@ class SubgradientSSVM(BaseSSVM):
                     objective += slack
                     dpsi += delta_psi
                     positive_slacks += 1
-            self._solve_subgradient(dpsi, n_samples)
-        return objective, positive_slacks
+            w = self._solve_subgradient(dpsi, n_samples, w)
+        return objective, positive_slacks, w
 
-    def _sequential_learning(self, X, Y):
+    def _sequential_learning(self, X, Y, w):
         n_samples = len(X)
         objective, positive_slacks = 0, 0
         if self.batch_size in [None, 1]:
             # online learning
             for x, y in zip(X, Y):
                 y_hat, delta_psi, slack, loss = \
-                    find_constraint(self.model, x, y, self.w)
+                    find_constraint(self.model, x, y, w)
                 objective += slack
                 if slack > 0:
                     positive_slacks += 1
-                self._solve_subgradient(delta_psi, n_samples)
+                self._solve_subgradient(delta_psi, n_samples, w)
         else:
             # mini batch learning
             if self.batch_size == -1:
@@ -261,13 +275,13 @@ class SubgradientSSVM(BaseSSVM):
                 X_b = X[batch]
                 Y_b = Y[batch]
                 Y_hat = self.model.batch_loss_augmented_inference(
-                    X_b, Y_b, self.w, relaxed=True)
+                    X_b, Y_b, w, relaxed=True)
                 delta_psi = (self.model.batch_psi(X_b, Y_b)
                              - self.model.batch_psi(X_b, Y_hat))
                 loss = np.sum(self.model.batch_loss(Y_b, Y_hat))
 
-                violation = np.maximum(0, loss - np.dot(self.w, delta_psi))
+                violation = np.maximum(0, loss - np.dot(w, delta_psi))
                 objective += violation
                 positive_slacks += self.batch_size
-                self._solve_subgradient(delta_psi / len(X_b), n_samples)
-        return objective, positive_slacks
+                self._solve_subgradient(delta_psi / len(X_b), n_samples, w)
+        return objective, positive_slacks, w
