@@ -2,7 +2,7 @@ from time import time
 import numpy as np
 
 from sklearn.externals.joblib import Parallel, delayed, cpu_count
-from sklearn.utils import gen_even_slices, deprecated
+from sklearn.utils import gen_even_slices, deprecated, shuffle
 
 from .ssvm import BaseSSVM
 from ..utils import find_constraint
@@ -90,7 +90,7 @@ class SubgradientSSVM(BaseSSVM):
                  learning_rate=0.001, n_jobs=1,
                  show_loss_every=0, decay_exponent=0,
                  break_on_no_constraints=True, logger=None, batch_size=None,
-                 decay_t0=10, averaging=None):
+                 decay_t0=10, averaging=None, shuffle=False):
         BaseSSVM.__init__(self, model, max_iter, C, verbose=verbose,
                           n_jobs=n_jobs, show_loss_every=show_loss_every,
                           logger=logger)
@@ -102,6 +102,7 @@ class SubgradientSSVM(BaseSSVM):
         self.decay_exponent = decay_exponent
         self.decay_t0 = decay_t0
         self.batch_size = batch_size
+        self.shuffle = shuffle
 
     @property
     @deprecated("Attribute objective_curve was renamed to"
@@ -171,6 +172,8 @@ class SubgradientSSVM(BaseSSVM):
         try:
             # catch ctrl+c to stop training
             for iteration in xrange(self.max_iter):
+                if self.shuffle:
+                    X, Y = shuffle(X, Y)
                 if self.n_jobs == 1:
                     objective, positive_slacks, w = self._sequential_learning(X, Y, w)
                 else:

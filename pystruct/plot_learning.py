@@ -154,6 +154,7 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
         axes[0].set_xlabel('Passes through training data')
         inds = np.arange(len(logger.timestamps_)) * logger.log_every
         #inds = logger.iterations_
+    inds = inds[:len(primal_objective)]  # i have no idea why we need this
     axes[0].set_title("Objective")
     axes[0].set_yscale('log')
     if suboptimality is None and len(logger.dual_objective_):
