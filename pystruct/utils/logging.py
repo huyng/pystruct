@@ -1,6 +1,8 @@
 import cPickle
 from time import time
 
+import numpy as np
+
 class SaveLogger(object):
     """Logging class that stores the model periodically.
 
@@ -26,11 +28,11 @@ class SaveLogger(object):
         self.verbose = verbose
 
     def __repr__(self):
-        log_every = getattr(self, "log_every", self.save_every)
+        log_every = getattr(self, "log_every", self.log_every)
         return ('%s(file_name="%s", log_every=%s)'
                 % (self.__class__.__name__, self.file_name, log_every))
 
-    def __call__(self, learner, X, Y, iteration=0):
+    def __call__(self, learner, X, Y, iteration=0, force=False):
         """Save learner if iterations is a multiple of log_every or "final".
 
         Parameters
@@ -38,11 +40,13 @@ class SaveLogger(object):
         learner : object
             Learning object to be saved.
 
-        iteration : int or 'final' (default=0)
-            If 'final' or log_every % iteration == 0,
+        iteration : int (default=0)
+            If log_every % iteration == 0,
             the model will be saved.
+        force : bool, default=False
+            If True, will save independent of iteration.
         """
-        if iteration == 'final' or not iteration % self.log_every:
+        if force or not iteration % self.log_every:
             file_name = self.file_name
             if "%d" in file_name:
                 file_name = file_name % iteration
@@ -64,25 +68,28 @@ class SaveLogger(object):
             learner = cPickle.load(f)
         return learner
 
+
 class AnalysisLogger(SaveLogger):
     """Log everything. """
-    def __init__(self, file_name, log_every=10, verbose=0, compute_primal=True,
-                 compute_loss=True, compute_dual=True):
+    def __init__(self, file_name=None, log_every=10, verbose=0, compute_primal=True,
+                 compute_loss=True, compute_dual=True, skip_caching=True):
         SaveLogger.__init__(self, file_name=file_name, log_every=log_every,
                             verbose=verbose)
         self.compute_primal = compute_primal
         self.compute_loss = compute_loss
+        self.skip_caching = skip_caching
         self.primal_objective_ = []
         self.dual_objective_ = []
         self.timestamps_ = []
         self.loss_ = []
         self.init_time_ = time()
+        self.iterations_ = []
 
     def __repr__(self):
         return ('%s(file_name="%s", log_every=%s)'
                 % (self.__class__.__name__, self.file_name, self.log_every))
 
-    def __call__(self, learner, X, Y, iteration=0):
+    def __call__(self, learner, X, Y, iteration=0, force=False):
         """Save learner if iterations is a multiple of log_every or "final".
 
         Parameters
@@ -90,17 +97,27 @@ class AnalysisLogger(SaveLogger):
         learner : object
             Learning object to be saved.
 
-        iteration : int or 'final' (default=0)
-            If 'final' or log_every % iteration == 0,
-            the model will be saved.
+        iteration : int (default=0)
+            If log_every % iteration == 0,
+            the model will be logged.
+
+        force : bool, default=False
+            Whether to force logging, such as in the last iteration.
         """
-        if iteration == 'final' or not iteration % self.log_every:
+        if self.skip_caching and hasattr(learner, 'cached_constraint_'):
+            iteration = iteration - np.sum(learner.cached_constraint_)
+            if iteration <= len(self.iterations_) * self.log_every:
+                # no inference since last log
+                return
+        if force or not iteration % self.log_every:
+            self.iterations_.append(iteration)
             self.timestamps_.append(time() - self.init_time_)
             if self.compute_primal:
                 self.primal_objective_.append(learner._objective(X, Y))
             if hasattr(learner, 'dual_objective_curve_'):
                 self.dual_objective_.append(learner.dual_objective_curve_[-1])
             if self.compute_loss:
-                self.loss_.append(learner.model.batch_loss(Y, learner.predict(X)))
+                self.loss_.append(np.sum(learner.model.batch_loss(Y, learner.predict(X))))
+        if self.file_name is not None:
+            SaveLogger.__call__(self, learner, X, Y, iteration=iteration)
 
-        SaveLogger.__call__(self, learner, X, Y, iteration=iteration)
