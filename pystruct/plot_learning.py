@@ -30,6 +30,8 @@ def get_color(offset=0):
         i += 1
         yield [c1, c2, c3]
 
+colors = ['b', 'r', 'g', 'c', 'm', 'y']
+
 
 def main():
 
@@ -48,9 +50,8 @@ def main():
     parser.add_argument('--absolute-loss', dest='absolute_loss', action='store_const',
                         const=True, default=False, help='Plot full loss value '
                        ' (default: plot difference to best loss.)')
-
+    parser.add_argument('--save', type=str, help='save plot to given file ', default=None)
     args = parser.parse_args()
-
     ssvms = []
     for file_name in args.pickles:
         print("loading %s ..." % file_name)
@@ -59,7 +60,7 @@ def main():
         n_plots = 2
     else:
         n_plots = 1
-    fig, axes = plt.subplots(1, n_plots)
+    fig, axes = plt.subplots(1, n_plots, figsize=(5, 3))
 
     # find best dual value among all objectives
     if not args.dual:
@@ -78,9 +79,8 @@ def main():
     if args.dual or not np.isfinite(best_dual):
         best_dual = None
 
-
-    for i, (ssvm, file_name, color) in enumerate(zip(ssvms, args.pickles, get_color(2))):
-    #for i, (ssvm, file_name, color) in enumerate(zip(ssvms, args.pickles, colors)):
+    #for i, (ssvm, file_name, color) in enumerate(zip(ssvms, args.pickles, get_color(10))):
+    for i, (ssvm, file_name, color) in enumerate(zip(ssvms, args.pickles, colors)):
         prefix = ""
         if len(ssvms) > 1:
             common_prefix_length = len(commonprefix(args.pickles))
@@ -88,6 +88,8 @@ def main():
         plot_learning(ssvm, axes=axes, prefix=prefix, time=args.time,
                       color=color, suboptimality=best_dual,
                       loss_bound=best_loss, loss=args.loss)
+    if args.save is not None:
+        plt.savefig(args.save, bbox_inches='tight')
     plt.show()
 
 
@@ -162,8 +164,8 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
         axes[0].plot(inds, logger.dual_objective_, '--', label=prefix + "dual objective", color=color, linewidth=3)
     else:
         primal_prefix = ""
-    axes[0].plot(inds, primal_objective, label=prefix + primal_prefix,
-                 color=color, linewidth=3)
+    axes[0].plot(inds, primal_objective, label=prefix + primal_prefix, color=color,
+                 linewidth=3)
     axes[0].legend(loc='best')
     if n_plots == 2:
         if time:
