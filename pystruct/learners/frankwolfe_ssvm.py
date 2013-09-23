@@ -124,19 +124,21 @@ class FrankWolfeSSVM(BaseSSVM):
         self.sample_method = sample_method
         self.random_state = random_state
 
-    def _calc_dual_gap(self, X, Y, l):
+    def _calc_dual_gap(self, X, Y, w, l):
         n_samples = len(X)
         psi_gt = self.model.batch_psi(X, Y, Y)  # FIXME don't calculate this again
-        Y_hat = self.model.batch_loss_augmented_inference(X, Y, self.w,
+        Y_hat = self.model.batch_loss_augmented_inference(X, Y, w,
                                                           relaxed=True)
         dpsi = psi_gt - self.model.batch_psi(X, Y_hat)
         ls = np.sum(self.model.batch_loss(Y, Y_hat))
         ws = dpsi * self.C
         l = l * n_samples * self.C
 
-        dual_val = -0.5 * np.sum(self.w ** 2) + l
-        w_diff = self.w - ws
-        dual_gap = w_diff.T.dot(self.w) - l + ls * self.C
+        dual_val = -0.5 * np.sum(w ** 2) + l
+        print("l: %f" % l)
+        print("w: %f" % (-0.5 * np.sum(w ** 2)))
+        w_diff = w - ws
+        dual_gap = w_diff.T.dot(w) - l + ls * self.C
         primal_val = dual_val + dual_gap
         return dual_val, dual_gap, primal_val
 
@@ -152,7 +154,9 @@ class FrankWolfeSSVM(BaseSSVM):
         n_samples = float(len(X))
         psi_gt = self.model.batch_psi(X, Y, Y)
 
+        self.iterations_ = []
         for k in xrange(self.max_iter):
+            self._iteration = k
             Y_hat = self.model.batch_loss_augmented_inference(X, Y, self.w,
                                                               relaxed=True)
             dpsi = psi_gt - self.model.batch_psi(X, Y_hat)
@@ -188,7 +192,7 @@ class FrankWolfeSSVM(BaseSSVM):
             if self.logger is not None:
                 self.logger(self, X, Y, k)
 
-            if dual_gap < self.tol:
+            if dual_gap_display < self.tol:
                 return
 
     def _frank_wolfe_bc(self, X, Y):
@@ -252,7 +256,7 @@ class FrankWolfeSSVM(BaseSSVM):
                 k += 1
 
             if (self.check_dual_every != 0) and (p % self.check_dual_every == 0):
-                dual_val, dual_gap, primal_val = self._calc_dual_gap(X, Y, l)
+                dual_val, dual_gap, primal_val = self._calc_dual_gap(X, Y, w, l)
                 self.primal_objective_curve_.append(primal_val)
                 self.dual_objective_curve_.append(dual_val)
                 self.timestamps_.append(time() - self.timestamps_[0])
