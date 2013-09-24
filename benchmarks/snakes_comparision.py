@@ -71,24 +71,23 @@ Y_train_flat = [y_.ravel() for y_ in Y_train]
 X_train_directions, X_train_edge_features = prepare_data(X_train)
 
 
-#inference = ('ogm', {'alg': 'fm'})
-inference = 'ad3'
+inference = ('ogm', {'alg': 'fm'})
+#inference = 'ad3'
 model = EdgeFeatureGraphCRF(inference_method=inference)
 
-bcfw = FrankWolfeSSVM(model=model, C=.1, max_iter=1000, tol=0.1, verbose=3, check_dual_every=3, averaging='linear')
+bcfw = FrankWolfeSSVM(model=model, C=.1, max_iter=10000, tol=0.1, verbose=3, check_dual_every=10, averaging='linear')
 pegasos = SubgradientSSVM(model=model, C=.1, max_iter=1000, verbose=3, momentum=0, decay_exponent=1, decay_t0=1, learning_rate=len(X_train) * .1)
-pystructsgd = SubgradientSSVM(model=model, C=.1, max_iter=1000, verbose=3)
 nslack = NSlackSSVM(model, C=.1, tol=.1, verbose=3)
 nslack_every = NSlackSSVM(model, C=.1, tol=.1, verbose=3, batch_size=1)
 oneslack = OneSlackSSVM(model, C=.1, tol=.1, verbose=3)
 oneslack_cache = OneSlackSSVM(model, C=.1, tol=.1, inference_cache=50, verbose=3)
 
-svms = [bcfw, pystructsgd, oneslack, oneslack_cache, pegasos, nslack, nslack_every]
-names = ['bcfw', 'pystructsgd_momentum', "oneslack", "oneslack_cache", "pegasos", "nslack", "nslack_every"]
+svms = [bcfw, oneslack, oneslack_cache, pegasos, nslack, nslack_every]
+names = ['SZJSP', "1-slack", "1-slack-cache", "pegasos", "n-slack", "n-slack-every"]
 
 X_train_edge_features, Y_train_flat = shuffle(X_train_edge_features, Y_train_flat)
 
 for name, svm in zip(names, svms):
-    logger = AnalysisLogger("snakes_ad3" + name + ".pickle", log_every=10)
+    logger = AnalysisLogger("snakes_qpbo" + name + ".pickle", log_every=10)
     svm.logger = logger
     svm.fit(X_train_edge_features, Y_train_flat)
