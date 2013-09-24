@@ -33,6 +33,11 @@ def get_color(offset=0):
 colors = ['b', 'r', 'g', 'c', 'm', 'DarkOrange', 'y', 'k']
 
 
+def save_subplot(fig, axes, filename):
+    extent = axes.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+    fig.savefig(filename, bbox_inches=extent.expanded(1.1, 1.2))
+
+
 def main():
 
     parser = argparse.ArgumentParser(description='Plot learning progress for one or several SSVMs.')
@@ -60,7 +65,7 @@ def main():
         n_plots = 2
     else:
         n_plots = 1
-    fig, axes = plt.subplots(1, n_plots, figsize=(5, 3))
+    fig, axes = plt.subplots(1, n_plots, figsize=(5 * n_plots, 3))
 
     # find best dual value among all objectives
     if not args.dual:
@@ -90,7 +95,11 @@ def main():
                       color=color, suboptimality=best_dual,
                       loss_bound=best_loss, loss=args.loss)
     if args.save is not None:
-        plt.savefig(args.save, bbox_inches='tight')
+        if n_plots == 1:
+            plt.savefig(args.save + ".pdf", bbox_inches='tight')
+        else:
+            save_subplot(fig, axes[0], args.save + ".pdf")
+            save_subplot(fig, axes[1], args.save + "_loss.pdf")
     plt.show()
 
 
