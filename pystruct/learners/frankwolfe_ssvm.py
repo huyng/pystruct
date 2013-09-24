@@ -135,8 +135,6 @@ class FrankWolfeSSVM(BaseSSVM):
         l = l * n_samples * self.C
 
         dual_val = -0.5 * np.sum(w ** 2) + l
-        print("l: %f" % l)
-        print("w: %f" % (-0.5 * np.sum(w ** 2)))
         w_diff = w - ws
         dual_gap = w_diff.T.dot(w) - l + ls * self.C
         primal_val = dual_val + dual_gap
