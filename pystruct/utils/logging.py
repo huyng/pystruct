@@ -104,9 +104,9 @@ class AnalysisLogger(SaveLogger):
         force : bool, default=False
             Whether to force logging, such as in the last iteration.
         """
-        if self.skip_caching and hasattr(learner, 'cached_constraint_'):
+        if self.skip_caching and hasattr(learner, 'cached_constraint_') and not force:
             iteration = iteration - np.sum(learner.cached_constraint_)
-            if iteration <= len(self.iterations_) * self.log_every:
+            if iteration < len(self.iterations_) * self.log_every:
                 # no inference since last log
                 return
         if force or not iteration % self.log_every:
@@ -119,5 +119,5 @@ class AnalysisLogger(SaveLogger):
             if self.compute_loss:
                 self.loss_.append(np.sum(learner.model.batch_loss(Y, learner.predict(X))))
         if self.file_name is not None:
-            SaveLogger.__call__(self, learner, X, Y, iteration=iteration)
+            SaveLogger.__call__(self, learner, X, Y, iteration=iteration, force=force)
 
