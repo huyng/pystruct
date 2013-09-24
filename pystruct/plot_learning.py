@@ -30,7 +30,7 @@ def get_color(offset=0):
         i += 1
         yield [c1, c2, c3]
 
-colors = ['b', 'r', 'g', 'c', 'm', 'y']
+colors = ['b', 'r', 'g', 'c', 'm', 'DarkOrange', 'y', 'k']
 
 
 def main():
@@ -84,6 +84,7 @@ def main():
         prefix = ""
         if len(ssvms) > 1:
             common_prefix_length = len(commonprefix(args.pickles))
+            #common_prefix_length = 0
             prefix = file_name[common_prefix_length:-7] + " "
         plot_learning(ssvm, axes=axes, prefix=prefix, time=args.time,
                       color=color, suboptimality=best_dual,
@@ -154,20 +155,21 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
         axes[0].set_xlabel('training time (min)')
     else:
         axes[0].set_xlabel('Passes through training data')
-        inds = np.arange(len(logger.timestamps_)) * logger.log_every
+        inds = np.arange(len(logger.timestamps_)) * logger.log_every + 1 # +1 for log plots
         #inds = logger.iterations_
     inds = inds[:len(primal_objective)]  # i have no idea why we need this
-    axes[0].set_title("Objective")
-    axes[0].set_yscale('log')
     if suboptimality is None and len(logger.dual_objective_):
         primal_prefix = "primal objective"
-        axes[0].plot(inds, logger.dual_objective_, '--', label=prefix + "dual objective", color=color, linewidth=3)
+        axes[0].plot(inds, logger.dual_objective_, '--', label=prefix + "dual objective", color=color, linewidth=2)
     else:
         primal_prefix = ""
     axes[0].plot(inds, primal_objective, label=prefix + primal_prefix, color=color,
-                 linewidth=3)
+                 linewidth=2)
     axes[0].legend(loc='best')
+    axes[0].set_yscale('log')
+    axes[0].set_xscale('log')
     if n_plots == 2:
+        axes[0].set_title("Objective")
         if time:
             axes[1].set_xlabel('training time (min)')
         else:
@@ -177,9 +179,11 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
             loss = [np.sum(l) for l in logger.loss_]
         else:
             loss = logger.loss_
-        axes[1].plot(inds, np.array(loss) - loss_bound, color=color, linewidth=3)
+        loss = np.maximum(.1, np.array(loss) - loss_bound)
+        axes[1].plot(inds, loss, color=color, linewidth=2)
         axes[1].set_title("Training Error (- %f)" % loss_bound)
         axes[1].set_yscale('log')
+        axes[1].set_xscale('log')
     return axes
 
 
