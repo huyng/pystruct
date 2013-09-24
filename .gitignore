@@ -7,5 +7,7 @@ cover
 doc/_build
 doc/generated
 doc/auto_examples
+benchmarks/*.pickle
+benchmarks/*.pdf
 build/
 *.egg-info
