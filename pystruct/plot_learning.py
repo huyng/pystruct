@@ -33,11 +33,6 @@ def get_color(offset=0):
 colors = ['b', 'r', 'g', 'c', 'm', 'DarkOrange', 'y', 'k']
 
 
-def save_subplot(fig, axes, filename):
-    extent = axes.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-    fig.savefig(filename, bbox_inches=extent.expanded(1.1, 1.2))
-
-
 def main():
 
     parser = argparse.ArgumentParser(description='Plot learning progress for one or several SSVMs.')
@@ -63,9 +58,12 @@ def main():
         ssvms.append(SaveLogger(file_name=file_name).load())
     if args.loss and np.any([hasattr(ssvm.logger, 'loss_') for ssvm in ssvms]):
         n_plots = 2
+        figures = [plt.figure(figsize=(5, 3)), plt.figure(figsize=(5, 3))]
+        axes = [f.gca() for f in figures]
     else:
         n_plots = 1
-    fig, axes = plt.subplots(1, n_plots, figsize=(5 * n_plots, 3))
+        fig, axes = plt.subplots(1, n_plots, figsize=(5 * n_plots, 3))
+    #fig, axes = plt.subplots(1, n_plots, figsize=(5 * n_plots, 3))
 
     # find best dual value among all objectives
     if not args.dual:
@@ -74,12 +72,12 @@ def main():
             if hasattr(ssvm, 'dual_objective_curve_'):
                 best_dual = max(best_dual, np.max(ssvm.dual_objective_curve_))
 
-    if not args.absolute_loss and n_plots ==2:
-        best_loss = np.inf
-        for ssvm in ssvms:
-            best_loss = min(best_loss, np.min(ssvm.logger.loss_))
-    else:
-        best_loss = 0
+    #if not args.absolute_loss and n_plots ==2:
+        #best_loss = np.inf
+        #for ssvm in ssvms:
+            #best_loss = min(best_loss, np.min(ssvm.logger.loss_))
+    #else:
+    best_loss = 0
 
     if args.dual or not np.isfinite(best_dual):
         best_dual = None
@@ -98,8 +96,8 @@ def main():
         if n_plots == 1:
             plt.savefig(args.save + ".pdf", bbox_inches='tight')
         else:
-            save_subplot(fig, axes[0], args.save + ".pdf")
-            save_subplot(fig, axes[1], args.save + "_loss.pdf")
+            figures[0].savefig(args.save + ".pdf", bbox_inches='tight')
+            figures[1].savefig(args.save + "_loss.pdf", bbox_inches='tight')
     plt.show()
 
 
@@ -156,7 +154,8 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
         n_plots = 1
     if axes is None:
         fig, axes = plt.subplots(1, n_plots)
-    if not isinstance(axes, np.ndarray):
+    #if not isinstance(axes, np.ndarray):
+    if not isinstance(axes, list):
         axes = [axes]
 
     if time:
@@ -165,7 +164,7 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
     else:
         axes[0].set_xlabel('Passes through training data')
         inds = np.arange(len(logger.timestamps_)) * logger.log_every + 1 # +1 for log plots
-        #inds = logger.iterations_
+        #inds = np.array(logger.iterations_) + 1   # +1 for log plots
     inds = inds[:len(primal_objective)]  # i have no idea why we need this
     if suboptimality is None and len(logger.dual_objective_):
         primal_prefix = "primal objective"
@@ -174,13 +173,22 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
         primal_prefix = ""
     axes[0].plot(inds, primal_objective, label=prefix + primal_prefix, color=color,
                  linewidth=2)
-    axes[0].legend(loc='best')
+    #axes[0].legend(loc='best')
     axes[0].set_yscale('log')
+    axes[0].set_ylim(10 ** -1,  10 ** 3)
+    if time:
+        axes[0].set_xlim(10 ** -2,  10 ** 3)
+    else:
+        axes[0].set_xlim(0,  10 ** 3)
+
     axes[0].set_xscale('log')
     if n_plots == 2:
-        axes[0].set_title("Objective")
+        if primal_prefix:
+            axes[0].set_title("Objective")
+        else:
+            axes[0].set_title("Primal Suboptimality")
         if time:
-            axes[1].set_xlabel('training time (min)')
+            axes[1].set_xlabel('Training time (min)')
         else:
             axes[1].set_xlabel('Passes through training data')
         if not isinstance(logger.loss_[0], Number):
@@ -188,9 +196,19 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
             loss = [np.sum(l) for l in logger.loss_]
         else:
             loss = logger.loss_
+        #if prefix == "SZLJSP ":
+            #print("GNAH")
+            #inds[1] += 1
+            #loss[0] += 100
+
         loss = np.maximum(.1, np.array(loss) - loss_bound)
         axes[1].plot(inds, loss, color=color, linewidth=2)
-        axes[1].set_title("Training Error (- %f)" % loss_bound)
+        axes[1].set_title("Training Error")
+        axes[1].set_ylim(10 ** -1,  10 ** 4)
+        if time:
+            axes[1].set_xlim(10 ** -2,  10 ** 3)
+        else:
+            axes[1].set_xlim(0,  10 ** 3)
         axes[1].set_yscale('log')
         axes[1].set_xscale('log')
     return axes
