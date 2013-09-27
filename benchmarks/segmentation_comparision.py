@@ -9,7 +9,7 @@ from pystruct.utils import AnalysisLogger
 
 from sklearn.utils import shuffle
 
-data_train = cPickle.load(open("msrc_dict_train.pickle"))
+data_train = cPickle.load(open("data_train_dict.pickle"))
 C = 0.01
 
 n_states = 21
@@ -33,12 +33,12 @@ oneslack_cache = OneSlackSSVM(model, C=.01, tol=.1, inference_cache=50, verbose=
 
 #svms = [bcfw, oneslack, oneslack_cache, pegasos, nslack, nslack_every]
 #names = ['bcfw', "oneslack", "oneslack_cache", "pegasos", "nslack", "nslack_every"]
-svms = [bcfw, oneslack, oneslack_cache, pegasos]
-names = ['bcfw', "oneslack", "oneslack_cache", "pegasos"]
+svms = [nslack_every]
+names = ["n_slack_every"]
 
 X_train, Y_train = shuffle(data_train['X'], data_train['Y'])
 
 for name, svm in zip(names, svms):
-    logger = AnalysisLogger("msrc_" + name + ".pickle", log_every=10)
+    logger = AnalysisLogger("pascal_" + name + ".pickle", log_every=10)
     svm.logger = logger
     svm.fit(X_train, Y_train)

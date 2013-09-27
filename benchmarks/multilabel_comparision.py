@@ -24,8 +24,8 @@ def chow_liu_tree(y_):
     edges.sort(axis=1)
     return edges
 
-dataset = "scene"
-#dataset = "yeast"
+#dataset = "scene"
+dataset = "yeast"
 
 if dataset == "yeast":
     yeast = fetch_mldata("yeast")
@@ -59,12 +59,12 @@ oneslack_cache = OneSlackSSVM(model, C=.1, tol=.1, inference_cache=50, verbose=3
 
 #svms = [bcfw, oneslack, oneslack_cache, pegasos, nslack, nslack_every]
 #names = ['bcfw', "oneslack", "oneslack_cache", "pegasos", "nslack", "nslack_every"]
-svms = [bcfw, oneslack_cache, nslack, nslack_every]
-names = ['SZLJSP', "1-cache-slack", "n-slack", "n-slack-every"]
+svms = [nslack, nslack_every]
+names = ["nslack", "n-slack-every"]
 
 X_train, y_train = shuffle(X_train, y_train)
 
 for name, svm in zip(names, svms):
-    logger = AnalysisLogger("scene_full_" + name + ".pickle", log_every=10)
+    logger = AnalysisLogger("yeast_full_" + name + ".pickle", log_every=10)
     svm.logger = logger
     svm.fit(X_train, y_train)

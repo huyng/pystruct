@@ -160,7 +160,7 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
 
     if time:
         inds = np.array(logger.timestamps_) / 60.
-        axes[0].set_xlabel('training time (min)')
+        axes[0].set_xlabel('Training time (min)')
     else:
         axes[0].set_xlabel('Passes through training data')
         inds = np.arange(len(logger.timestamps_)) * logger.log_every + 1 # +1 for log plots
@@ -175,11 +175,11 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
                  linewidth=2)
     #axes[0].legend(loc='best')
     axes[0].set_yscale('log')
-    axes[0].set_ylim(10 ** -1,  10 ** 3)
-    if time:
-        axes[0].set_xlim(10 ** -2,  10 ** 3)
-    else:
-        axes[0].set_xlim(0,  10 ** 3)
+    #axes[0].set_ylim(10 ** -1,  10 ** 3)
+    #if time:
+        #axes[0].set_xlim(10 ** -2,  10 ** 3)
+    #else:
+        #axes[0].set_xlim(0,  10 ** 3)
 
     axes[0].set_xscale('log')
     if n_plots == 2:
@@ -205,10 +205,10 @@ def plot_learning(ssvm, time=True, axes=None, prefix="", color=None,
         axes[1].plot(inds, loss, color=color, linewidth=2)
         axes[1].set_title("Training Error")
         axes[1].set_ylim(10 ** -1,  10 ** 4)
-        if time:
-            axes[1].set_xlim(10 ** -2,  10 ** 3)
-        else:
-            axes[1].set_xlim(0,  10 ** 3)
+        #if time:
+            #axes[1].set_xlim(10 ** -2,  10 ** 3)
+        #else:
+            #axes[1].set_xlim(0,  10 ** 3)
         axes[1].set_yscale('log')
         axes[1].set_xscale('log')
     return axes

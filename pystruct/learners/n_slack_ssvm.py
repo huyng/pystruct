@@ -184,7 +184,7 @@ class NSlackSSVM(BaseSSVM):
         if solution['status'] != "optimal":
             print("regularizing QP!")
             P = cvxopt.matrix(np.dot(psi_matrix, psi_matrix.T)
-                              + 1e-8 * np.eye(psi_matrix.shape[0]))
+                              + 1e-2 * np.eye(psi_matrix.shape[0]))
             solution = cvxopt.solvers.qp(P, q, G, h)
             if solution['status'] != "optimal":
                 raise ValueError("QP solver failed. Try regularizing your QP.")

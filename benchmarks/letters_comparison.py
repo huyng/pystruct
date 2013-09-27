@@ -16,8 +16,8 @@ X, y, folds = letters['data'], letters['labels'], letters['folds']
 # we convert the lists to object arrays, as that makes slicing much more
 # convenient
 X, y = np.array(X), np.array(y)
-X_train, X_test = X[folds != 1], X[folds == 1]
-y_train, y_test = y[folds != 1], y[folds == 1]
+X_train, X_test = X[folds == 1], X[folds != 1]
+y_train, y_test = y[folds == 1], y[folds != 1]
 
 
 # Train linear chain CRF
@@ -32,13 +32,13 @@ oneslack_cache = OneSlackSSVM(model, C=.1, tol=.1, inference_cache=50, verbose=3
 
 #svms = [bcfw, oneslack, oneslack_cache, pegasos, nslack, nslack_every]
 #names = ['bcfw', "oneslack", "oneslack_cache", "pegasos", "nslack", "nslack_every"]
-svms = [nslack_every]
-names = ['nslack_every']
+svms = [nslack, nslack_every]
+names = ['nslack3', 'nslack_every3']
 
 print(len(X))
 X_train, y_train = shuffle(X_train, y_train)
 
 for name, svm in zip(names, svms):
-    logger = AnalysisLogger("letters_big_" + name + ".pickle", log_every=10)
+    logger = AnalysisLogger("letters_small_" + name + ".pickle", log_every=10)
     svm.logger = logger
     svm.fit(X_train, y_train)
