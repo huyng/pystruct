@@ -124,19 +124,19 @@ class FrankWolfeSSVM(BaseSSVM):
         self.sample_method = sample_method
         self.random_state = random_state
 
-    def _calc_dual_gap(self, X, Y, w, l):
+    def _calc_dual_gap(self, X, Y):
         n_samples = len(X)
         psi_gt = self.model.batch_psi(X, Y, Y)  # FIXME don't calculate this again
-        Y_hat = self.model.batch_loss_augmented_inference(X, Y, w,
+        Y_hat = self.model.batch_loss_augmented_inference(X, Y, self.w,
                                                           relaxed=True)
         dpsi = psi_gt - self.model.batch_psi(X, Y_hat)
         ls = np.sum(self.model.batch_loss(Y, Y_hat))
         ws = dpsi * self.C
-        l = l * n_samples * self.C
+        l_rescaled = self.l * n_samples * self.C
 
-        dual_val = -0.5 * np.sum(w ** 2) + l
-        w_diff = w - ws
-        dual_gap = w_diff.T.dot(w) - l + ls * self.C
+        dual_val = -0.5 * np.sum(self.w ** 2) + l_rescaled
+        w_diff = self.w - ws
+        dual_gap = w_diff.T.dot(self.w) - l_rescaled + ls * self.C
         primal_val = dual_val + dual_gap
         return dual_val, dual_gap, primal_val
 
@@ -246,15 +246,18 @@ class FrankWolfeSSVM(BaseSSVM):
                 if self.averaging == 'linear':
                     rho = 2. / (k + 2.)
                     self.w = (1. - rho) * self.w + rho * w
+                    self.l = (1. - rho) * self.l + rho * l
                 elif self.averaging == 'squared':
                     rho = 6. * (k + 1) / ((k + 2) * (2 * k + 3))
                     self.w = (1. - rho) * self.w + rho * w
+                    self.l = (1. - rho) * self.l + rho * l
                 else:
                     self.w = w
+                    self.l = l
                 k += 1
 
             if (self.check_dual_every != 0) and (p % self.check_dual_every == 0):
-                dual_val, dual_gap, primal_val = self._calc_dual_gap(X, Y, w, l)
+                dual_val, dual_gap, primal_val = self._calc_dual_gap(X, Y)
                 self.primal_objective_curve_.append(primal_val)
                 self.dual_objective_curve_.append(dual_val)
                 self.timestamps_.append(time() - self.timestamps_[0])
@@ -293,6 +296,7 @@ class FrankWolfeSSVM(BaseSSVM):
         self.dual_objective_curve_, self.primal_objective_curve_ = [], []
         self.timestamps_ = [time()]
         self.w = getattr(self, "w", np.zeros(self.model.size_psi))
+        self.l = getattr(self, "l", 0)
         try:
             if self.batch_mode:
                 self._frank_wolfe_batch(X, Y)
